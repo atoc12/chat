@@ -1,0 +1,16 @@
+*{
+    padding: 0%;
+    margin: 0%;
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
+:root{
+    --thme-background1:#303030;
+}
+body{
+    background-color: var(--thme-background1);
+}
+#root{
+    display: grid;
+    min-height: 100vh;
+}
