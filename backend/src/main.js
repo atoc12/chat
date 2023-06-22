@@ -1,4 +1,5 @@
 require("../db/conexion.js");
+require('dotenv').config();
 const cors = require("cors");
 const express =require('express');
 const bdRouter = require("../db/api.js");
@@ -111,4 +112,4 @@ app.get('*', (req, res) => {
 });
 
 //-------------------------------------------------------------Servidor-----------------------------------------------------------------
-servidor.listen(80,()=>console.log("servidor encendido en http://localhost:3000"))
+servidor.listen(process.env.PORT,()=>console.log("servidor encendido en http://localhost:"+process.env.PORT));
