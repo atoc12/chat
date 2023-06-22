@@ -1,4 +1,4 @@
 export const app = {
-    ip:"http://localhost",
+    ip:"http://34.151.204.251",
     port:"80"
 }

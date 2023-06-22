@@ -112,4 +112,4 @@ app.get('*', (req, res) => {
 });
 
 //-------------------------------------------------------------Servidor-----------------------------------------------------------------
-servidor.listen(process.env.PORT,()=>console.log("servidor encendido en http://localhost:"+process.env.PORT));
+servidor.listen(process.env.PORT,()=>console.log("servidor encendido en http://"+process.env.IP+":"+process.env.PORT));
