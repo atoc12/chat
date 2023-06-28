@@ -148,13 +148,14 @@ const ActualizarUsuario = async (req,res=null)=>{// funcion que permite actualiz
 
 const enviarSolicitud =async (req,res=null)=>{
     try{
+        console.log(req);
         let {search,value} = req.body;
         let respons = await User.find(search);
+        console.log(respons);
+        if(!respons) return console.log("usuario no encontrado");
         if(respons[0].solicitud.find(data => data._id.toString() == value._id.toString())) return {message:"la solicitud ya ha sido enviada",client:null};
         respons[0].solicitud.push(value);
         await respons[0].save();
-        
-        
         if(res){
             res.json({ message: "Contacto agregado exitosamente" });
         }
@@ -214,7 +215,8 @@ const ObtenerContacto = async (req,res)=>{
         let datos_search= datos.search;
         let datos_value= datos.value;
         let resultado=await User.findOne(datos_search,`contactos`);
-        res.json(resultado);
+        if(res)return res.json(resultado);
+        return resultado;
     }catch(err){console.log(err)}
 }
 const AgregarContacto = async (req,res)=>{ // funcion que permite obtener datos de contactos

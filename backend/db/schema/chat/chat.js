@@ -43,7 +43,7 @@ const BorrarChat = async (res,id)=>{
 
 const ObtenerChat = async (res,id)=>{ 
     try{
-        let respons = await Chat.find({_id:id});
+        let respons = await Chat.findById({_id:id});
         if(res){
             res.json(!respons || respons.length <= 0 ? {message:"error"} : respons);
         }
