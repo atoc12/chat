@@ -5,7 +5,7 @@ const express =require('express');
 const bdRouter = require("../db/api.js");
 const http = require("http");
 const {Server} = require("socket.io");
-const { ActualizarUsuario, ObtenerContacto, ObtenerUsuarios, opcionSolicitud, enviarSolicitud, AgregarContacto } = require("../db/schema/user/usuario.js");
+const { ActualizarUsuario, ObtenerContacto, ObtenerUsuarios, opcionSolicitud, enviarSolicitud, AgregarContacto, ObtenerNotifiaciones } = require("../db/schema/user/usuario.js");
 const { AgregarMensaje, ObtenerChat } = require("../db/schema/chat/chat.js");
 const path = require("path");
 const app = express();
@@ -23,27 +23,52 @@ app.use("/",bdRouter);// conectá las rutas de la api con el servidor express
 //--------------------------------------------------------------Socket--------------------------------------------------------------
 //esta area es para el socket.io un framework que trabaja con websockets ,permite crear eventos desde el bakckend
 
+
+
+
+
+
+
+
+//----------------------------------------------Socket.io-------------------------------------------------------------------
+
+
+
 io.on('connection',async (cliente)=>{
     var usuario=null;
     var chatJoin=null;
 
-    cliente.on("user_connect",async (data)=>{
+    cliente.on("user_connect",async (data)=>{// detecta cuando un usuario se conecta
         console.log("user connect");
+        cliente.emit("recive-id",cliente.id);
+        await ActualizarUsuario({
+            body:{
+                search:{
+                    _id:data._id,
+                },
+                update:{
+                    socket_id:cliente.id,
+                    conexion:true
+                }
+            }
+        },null);
         let datos = await ObtenerUsuarios({body:{search:data}},null,true);
         cliente.emit("contacts-recive",await ObtenerContacto({body:{
             search:{_id:data._id}
         }}));
-        usuario=data;
-    })
+        cliente.emit("recive-noti",datos.notificaciones);
+        usuario=datos;
+    });
+    cliente.on("recive-change",data=>{
 
-
-    cliente.on("send-chat",async (data)=>{
+    });
+    cliente.on("send-chat",async (data)=>{// envia el identificador del chat en el que se encuentra
         try{
             console.log(data);
             let chat = await ObtenerChat(null,data.chat_id);
             if(!chatJoin){
                 cliente.join(data.chat_id);
-                chatJoin=data;
+                chatJoin=data.chat_id;
             }else if(data.chat_id != chatJoin){
                 cliente.leave(data.chat_id);
                 cliente.join(data.chat_id);
@@ -53,14 +78,44 @@ io.on('connection',async (cliente)=>{
         }catch(err){
             console.log(err);
         }        
-    })
-    cliente.on("send-message",async (msj)=>{
+    });
+    cliente.on("recive-solicitud",async (data)=>{// envia las solicitudes de amistad
+        try{
+            let a = await ObtenerUsuarios({
+                body:{
+                    search:{
+                        _id:usuario._id.toString()
+                    },
+                    value:["solicitud"]
+                }
+            },null,true)
+            console.log(a);
+            if(a.solicitud.length >0){
+                cliente.emit("solicitudes",a.solicitud);
+            }
+        }catch(err){
+            console.log(err);
+        }
+    });
+    cliente.on("send-message",async (msj)=>{//enviar mensajes a los chats
         console.log(chatJoin);
         await AgregarMensaje(null,chatJoin,msj);
         cliente.emit("recive-message",msj);
         cliente.to(chatJoin).emit("recive-message",msj);
-    })
-    cliente.on("add-contact",async (data)=>{
+    });
+    cliente.on("obtener-contactos",async(data)=>{
+        try{
+            console.log("recibir datos");
+            let a = await ObtenerContacto({body:{_id:usuario._id}},null);
+            console.log(a.contactos);
+            if(a.contactos.length > 0 ){
+                cliente.emit("contacts-recive",a);
+            }
+        }catch(err){
+            console.log(err);
+        }
+    });
+    cliente.on("add-contact",async (data)=>{//envia solicitudes de amistad
         try{
             let datos = {
                 body:{
@@ -74,23 +129,61 @@ io.on('connection',async (cliente)=>{
                 }
             }
             let soli = await enviarSolicitud(datos,null);
-            cliente.emit("notification",soli);
+            // let info = await ObtenerUsuarios (datos,null);
+            // if(soli.socket){
+                // console.log(info);
+                io.to(soli.socket).emit("recive-noti",soli.body);
+            // }
         }catch(err){
             console.log(err);
         }
-    })
-
-
-    
-
-    
+    });
+    cliente.on("solicitud-option",async(data)=>{//confirmacion de las solicitudes
+        try{
+            console.log(data);
+            let a = await opcionSolicitud({
+                body:{
+                    value:{_id:data.data._id},
+                    search:{_id:usuario._id.toString()},
+                    option:data.value
+                }
+            },null);
+            if(data.value){
+                cliente.emit("change-contacts",true);
+            }
+        }catch(err){
+            console.log(err);
+        }
+    });
     cliente.on("disconnect",async(data)=>{
         console.log("usuario desconectado");
         // if(usuario){
         //     await ActualizarUsuario({body:{search:{_id:await usuario._id},update:{conexion:false}}})
         // }
-    })
+    });
 })
+
+
+
+
+//----------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const publicPath = path.resolve(__dirname, '../../dist');
 app.use(express.static(publicPath));
 

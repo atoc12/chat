@@ -54,6 +54,17 @@ const userSchema = new Schema({
             }
         }
     ],
+    notificaciones:[
+        {
+            sender:String,
+            name:String,
+            content:String,
+            timestamp: {
+                type: Date,
+                default: Date.now,
+            }
+        }
+    ],
     conexion:{
         type:Boolean,
         default:false
@@ -74,17 +85,17 @@ const ObtenerUsuarios = async (req,res,search=false)=>{
     try{
         let datos = req.body;
         let datos_value = datos.value ? datos.value.join(" ",",") : '';
-        let respuesta = await User.find(search ? datos.search : {}).select(datos_value);
+        let respuesta = await User.findOne(search ? datos.search : {}).select(datos_value);
         if(datos.session){
-            if(respuesta.length <=0){
+            if(!respuesta){
                 console.log("no se habre session");
             }else{
                 var newId = idGenerator();
                 await User.findOneAndUpdate(datos.search,{session:newId,conexion:true},{new:true}); // se crea el id y luego se almacena
                 respuesta = {
-                    _id:respuesta[0]._id,
-                    email:respuesta[0].email,
-                    name: respuesta[0].name
+                    _id:respuesta._id,
+                    email:respuesta.email,
+                    name: respuesta.name
                 }
             }
         }
@@ -150,16 +161,21 @@ const enviarSolicitud =async (req,res=null)=>{
     try{
         console.log(req);
         let {search,value} = req.body;
-        let respons = await User.find(search);
-        console.log(respons);
+        let respons = await User.findOne(search);
         if(!respons) return console.log("usuario no encontrado");
-        if(respons[0].solicitud.find(data => data._id.toString() == value._id.toString())) return {message:"la solicitud ya ha sido enviada",client:null};
-        respons[0].solicitud.push(value);
-        await respons[0].save();
+        if(respons.solicitud.find(data => data._id.toString() == value._id.toString())) return {message:"la solicitud ya ha sido enviada",client:null};
+        let message = {
+            sender:value._id,
+            name:value.name,
+            content:`${value.name} te ha enviado una solicitud`
+        }
+        respons.solicitud.push({_id:value._id,name:value.name});
+        respons.notificaciones.push(message);
+        await respons.save();
         if(res){
             res.json({ message: "Contacto agregado exitosamente" });
         }
-        return {message:"solicitud enviada",client:respons[0].socket_id};
+        return {socket:respons.socket_id,body:message};
     }catch(err){
         console.log(err)
     }
@@ -170,13 +186,13 @@ const enviarSolicitud =async (req,res=null)=>{
 
 const opcionSolicitud =async (req,res=null)=>{
     try{
+        console.log(req.body);
         const {search,value,option} = req.body;
         let usuario = await User.findOne(search);
         if(!usuario) return res.json({message:"usuario no encontrado"});
         let validation =usuario.solicitud.findIndex((solicitante)=> solicitante._id.toString() === value._id.toString());
         if(validation === -1) return {message:"contacto no existente"};
         usuario.solicitud.splice(validation,1);
-        
         if(!option) {await usuario.save(); return {message:"se ha rechazado con exito"}};
         let usuario2 = await User.findOne({_id:value._id});
         let chat =await CrearChat();
@@ -206,7 +222,15 @@ const opcionSolicitud =async (req,res=null)=>{
         console.log(err)
     }
 }
-
+const ObtenerNotifiaciones = async (req,res)=>{
+    try{
+        let datos= req.body;
+        let datos_search= datos.search;
+        let resultado=await User.findOne(datos_search,`notificaciones`);
+        if(res)return res.json(resultado);
+        return resultado;
+    }catch(err){console.log(err)}
+}
 
 // //----------------------------------contactos--------------------------------------------
 const ObtenerContacto = async (req,res)=>{
@@ -271,6 +295,7 @@ module.exports = {
     ActualizarUsuario,
     enviarSolicitud,
     opcionSolicitud,
+    ObtenerNotifiaciones,
     AgregarContacto,
     ObtenerContacto,
     ActualizarContacto,
