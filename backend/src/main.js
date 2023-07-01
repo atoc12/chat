@@ -37,43 +37,51 @@ app.use("/",bdRouter);// conectá las rutas de la api con el servidor express
 io.on('connection',async (cliente)=>{
     var usuario=null;
     var chatJoin=null;
-
-    cliente.on("user_connect",async (data)=>{// detecta cuando un usuario se conecta
-        console.log("user connect");
-        cliente.emit("recive-id",cliente.id);
-        await ActualizarUsuario({
-            body:{
-                search:{
-                    _id:data._id,
-                },
-                update:{
-                    socket_id:cliente.id,
-                    conexion:true
+    var testBtn = [];
+    await cliente.on("user_connect",async (data)=>{// detecta cuando un usuario se conecta
+        try{
+            console.log("user connect");
+            cliente.join(data._id)
+            cliente.emit("recive-id",cliente.id);
+            await ActualizarUsuario({
+                body:{
+                    search:{
+                        _id:data._id,
+                    },
+                    update:{
+                        socket_id:cliente.id,
+                        conexion:true
+                    }
                 }
+            },null);
+            let datos = await ObtenerUsuarios({body:{search:data}},null,true);
+            cliente.emit("contacts-recive",await ObtenerContacto({body:{
+                search:{_id:data._id}
+            }}));
+            usuario=datos;
+            cliente.emit("recive-noti",datos.notificaciones);
+            if(data.name == "carlos"){
+                cliente.join(2);
             }
-        },null);
-        let datos = await ObtenerUsuarios({body:{search:data}},null,true);
-        cliente.emit("contacts-recive",await ObtenerContacto({body:{
-            search:{_id:data._id}
-        }}));
-        cliente.emit("recive-noti",datos.notificaciones);
-        usuario=datos;
+            datos.contactos.map((a)=>{
+                cliente.join(a._id.toString());
+                cliente.to(a._id.toString()).emit("contact-connected",`${usuario.name} está conectado`);
+            })
+        }catch(err){
+            console.log(err);
+        }
     });
     cliente.on("recive-change",data=>{
 
     });
     cliente.on("send-chat",async (data)=>{// envia el identificador del chat en el que se encuentra
         try{
-            console.log(data);
             let chat = await ObtenerChat(null,data.chat_id);
-            if(!chatJoin){
-                cliente.join(data.chat_id);
-                chatJoin=data.chat_id;
-            }else if(data.chat_id != chatJoin){
-                cliente.leave(data.chat_id);
-                cliente.join(data.chat_id);
-                chatJoin=data.chat_id;
+            if(chatJoin){
+                cliente.leave(chatJoin);
             }
+            cliente.join(data.chat_id);
+            chatJoin=data.chat_id;
             cliente.emit("recive-chat-info",chat.messages);
         }catch(err){
             console.log(err);
@@ -105,7 +113,7 @@ io.on('connection',async (cliente)=>{
     });
     cliente.on("obtener-contactos",async(data)=>{
         try{
-            console.log("recibir datos");
+            console.log(await usuario);
             let a = await ObtenerContacto({body:{_id:usuario._id}},null);
             console.log(a.contactos);
             if(a.contactos.length > 0 ){
@@ -149,17 +157,29 @@ io.on('connection',async (cliente)=>{
                 }
             },null);
             if(data.value){
+                console.log(a);
                 cliente.emit("change-contacts",true);
+                cliente.to(data.data._id.toString()).emit("change-contacts",true);
             }
         }catch(err){
             console.log(err);
         }
     });
+    cliente.on("test-btn",data=>{
+        try{
+            console.log("a");
+            testBtn.push({chat_id:2,name:"lol"});
+            cliente.emit("test-contactos",{contactos:testBtn});
+        }catch(err){
+            console.log(err);
+        }
+    })
     cliente.on("disconnect",async(data)=>{
         console.log("usuario desconectado");
         // if(usuario){
         //     await ActualizarUsuario({body:{search:{_id:await usuario._id},update:{conexion:false}}})
         // }
+        delete usuario;
     });
 })
 

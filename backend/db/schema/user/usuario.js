@@ -215,7 +215,7 @@ const opcionSolicitud =async (req,res=null)=>{
         await usuario.save();
         await usuario2.save();
         await chat.save();
-        return {message:"contacto añadido"};
+        return {message:"contacto añadido",socket:usuario.socket_id};
 
 
     }catch(err){
@@ -239,6 +239,7 @@ const ObtenerContacto = async (req,res)=>{
         let datos_search= datos.search;
         let datos_value= datos.value;
         let resultado=await User.findOne(datos_search,`contactos`);
+        console.log(req.body);
         if(res)return res.json(resultado);
         return resultado;
     }catch(err){console.log(err)}
