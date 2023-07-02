@@ -159,7 +159,6 @@ const ActualizarUsuario = async (req,res=null)=>{// funcion que permite actualiz
 
 const enviarSolicitud =async (req,res=null)=>{
     try{
-        console.log(req);
         let {search,value} = req.body;
         let respons = await User.findOne(search);
         if(!respons) return console.log("usuario no encontrado");
@@ -202,12 +201,22 @@ const opcionSolicitud =async (req,res=null)=>{
             socket_id:usuario2.socket_id,
             chat_id:chat._id.toString()
         })
+        usuario.notificaciones.push({
+            sender:usuario2._id,
+            name:usuario2.name,
+            content:`${usuario2.name} se ha añadido a tus contactos`
+        })
         usuario2.contactos.push({
             _id:usuario._id,
             conexion:usuario.conexion,
             name:usuario.name,
             socket_id:usuario.socket_id,
             chat_id:chat._id.toString()
+        })
+        usuario2.notificaciones.push({
+            sender:usuario._id,
+            name:usuario.name,
+            content:`${usuario.name} se ha añadido a tus contactos`
         })
         chat.participants.push(usuario);
         chat.participants.push(usuario2);
@@ -221,6 +230,35 @@ const opcionSolicitud =async (req,res=null)=>{
         console.log(err)
     }
 }
+//-------------------------Notificaciones-------------------------------------
+
+const CrearNotificacion =async (req,res=null)=>{
+    try{
+        const {search,value} = req.body;
+        let resultado = await User.findOne(search).select("notificaciones");
+        resultado.notificaciones.push(value);
+        await resultado.save();
+
+    }catch(err){console.log(err)}
+}
+
+const BorrarNotificacion = async(req,res=null)=>{
+    try{
+        let {search,value} = req.body;
+        let usuario = await User.findOne(search);
+        if(!usuario) return ;
+        if(value){
+            let noti =usuario.notificaciones.findIndex((notificaciones)=> notificaciones._id.toString() === value._id.toString());
+            if(noti === -1) return res.json({message:"contacto no existente"});
+            usuario.notificaciones.splice(noti,1);
+        }else{
+            usuario.notificaciones = [];
+        }
+        await usuario.save()
+    }catch(err){console.log(err)}
+}
+
+
 const ObtenerNotifiaciones = async (req,res)=>{
     try{
         let datos= req.body;
@@ -237,7 +275,6 @@ const ObtenerContacto = async (req,res)=>{
         let datos= req.body;
         let datos_search= datos.search;
         let resultado=await User.findOne(datos_search,`contactos`);
-        console.log(req.body);
         if(res)return res.json(resultado);
         return resultado;
     }catch(err){console.log(err)}
@@ -295,6 +332,8 @@ module.exports = {
     enviarSolicitud,
     opcionSolicitud,
     ObtenerNotifiaciones,
+    CrearNotificacion,
+    BorrarNotificacion,
     AgregarContacto,
     ObtenerContacto,
     ActualizarContacto,

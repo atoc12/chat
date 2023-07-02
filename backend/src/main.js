@@ -5,7 +5,7 @@ const express =require('express');
 const bdRouter = require("../db/api.js");
 const http = require("http");
 const {Server} = require("socket.io");
-const { ActualizarUsuario, ObtenerContacto, ObtenerUsuarios, opcionSolicitud, enviarSolicitud, AgregarContacto, ObtenerNotifiaciones } = require("../db/schema/user/usuario.js");
+const { ActualizarUsuario, ObtenerContacto, ObtenerUsuarios, opcionSolicitud, enviarSolicitud, AgregarContacto, ObtenerNotifiaciones, CrearNotificacion, BorrarNotificacion } = require("../db/schema/user/usuario.js");
 const { AgregarMensaje, ObtenerChat } = require("../db/schema/chat/chat.js");
 const path = require("path");
 const app = express();
@@ -73,6 +73,48 @@ io.on('connection',async (cliente)=>{
             })
         }catch(err){console.log(err)}
     })
+    //-----------------------Notificaciones---------------------
+
+    cliente.on("obtener-notificaciones",async (datos)=>{
+        try{
+            let noti = await ObtenerNotifiaciones({body:{search:{_id:datos._id}}});
+            cliente.emit("recive-notificaciones",noti.notificaciones);
+        }catch(err){console.log(err);}
+    });
+
+    cliente.on("create-noti",async (datos)=>{
+        try{
+            let noti_create = {
+                body:{
+                    search:{_id:user[cliente.id]._id},
+                    value:datos
+                }
+            }
+
+            await CrearNotificacion(noti_create);
+            cliente.emit("news-noti",true);
+        }catch(err){console.log(err)}
+    })
+
+    cliente.on("delete-noti",async (datos) => {
+        try{
+            let noti_select ={
+                body:{
+                    value:datos,
+                    search:{
+                        _id:user[cliente.id]._id.toString()
+                    }
+                }
+            }
+            await BorrarNotificacion(noti_select);
+            cliente.emit("news-noti",true);
+        }catch(err){
+            console.log(err);
+        }
+    })
+
+
+
     //------------------------solicitud-------------------------
     cliente.on("obtener-solicitud",async (datos)=>{
         try{
@@ -102,7 +144,10 @@ io.on('connection',async (cliente)=>{
             if(datos.value){
                 cliente.emit("solicitud-aceptada",true);
                 cliente.to(datos.data._id).emit("solicitud-aceptada",true);
+                cliente.emit("news-noti",true);
+                cliente.to(datos.data._id).emit("news-noti",true);
             }
+            cliente.emit("news-solicitud",true);
         }catch(err){console.log(err);}
     });
 
@@ -161,14 +206,14 @@ io.on('connection',async (cliente)=>{
 
     cliente.on("disconnect",async(datos)=>{
         try{
-            let usuario_update ={ // estructura necesaria para buscar y actualizar datos
-                body:{
-                    search:user[cliente.id]._id,
-                    update:{conexion:false}
-                },
-            }
-            await ActualizarUsuario(usuario_update);
-            delete user[cliente.id];
+            // let usuario_update ={ // estructura necesaria para buscar y actualizar datos
+            //     body:{
+            //         search:user[cliente.id]._id,
+            //         update:{conexion:false}
+            //     },
+            // }
+            // await ActualizarUsuario(usuario_update);
+            // delete user[cliente.id];
         }catch(err){console.log(err)}
     })
 })
