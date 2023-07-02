@@ -1,0 +1,16 @@
+:root{
+    /*------------------------------- Backgrounds---------------------- */
+    --background-primary:white;
+    --background-secondary:rgb(246, 246, 246)
+    ;
+    /* ------------------------------- Colors hover backgrounds-------- */
+    --background-hover-primary:rgb(47, 149, 149);
+    /* -----------------------------Font-color-------------------------- */
+    --font-color-primary:black;
+    --font-color-secondary:cyan;
+    --svg-color:black;
+    /*--------------------------------borders-------------------------- */
+    --border-primary:2px solid black;
+    /*--------------------------------Box-shadow-----------------------  */
+    --box-shadow-primary:0px 0px 10px -5px rgb(21, 19, 19);
+}

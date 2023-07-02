@@ -33,95 +33,92 @@ app.use("/",bdRouter);// conectá las rutas de la api con el servidor express
 //----------------------------------------------Socket.io-------------------------------------------------------------------
 
 
+const user = {};
 
 io.on('connection',async (cliente)=>{
-    var usuario=null;
-    var chatJoin=null;
-    var testBtn = [];
-    await cliente.on("user_connect",async (data)=>{// detecta cuando un usuario se conecta
-        try{
-            console.log("user connect");
-            cliente.join(data._id)
-            cliente.emit("recive-id",cliente.id);
-            await ActualizarUsuario({
-                body:{
-                    search:{
-                        _id:data._id,
-                    },
-                    update:{
-                        socket_id:cliente.id,
-                        conexion:true
-                    }
-                }
-            },null);
-            let datos = await ObtenerUsuarios({body:{search:data}},null,true);
-            cliente.emit("contacts-recive",await ObtenerContacto({body:{
-                search:{_id:data._id}
-            }}));
-            usuario=datos;
-            cliente.emit("recive-noti",datos.notificaciones);
-            if(data.name == "carlos"){
-                cliente.join(2);
-            }
-            datos.contactos.map((a)=>{
-                cliente.join(a._id.toString());
-                cliente.to(a._id.toString()).emit("contact-connected",`${usuario.name} está conectado`);
-            })
-        }catch(err){
-            console.log(err);
-        }
-    });
-    cliente.on("recive-change",data=>{
+    user[cliente.id]={
+        _id:null,
+        name:null,
+        conexion:false,
+        socket_id:cliente.id,
+        chatJoin:null
+    };
 
-    });
-    cliente.on("send-chat",async (data)=>{// envia el identificador del chat en el que se encuentra
+    cliente.on("conexion-usuario",async (datos)=>{
         try{
-            let chat = await ObtenerChat(null,data.chat_id);
-            if(chatJoin){
-                cliente.leave(chatJoin);
+            //----------------------Crear room del usuario-----------------------------
+            cliente.join(datos._id);
+            //---------------------------Actualizar usuario----------------------------
+            let usuario_update ={ // estructura necesaria para buscar y actualizar datos
+                body:{
+                    search:datos._id.toString(),
+                    update:{
+                        conexion:true,
+                        socket_id:cliente.id
+                    }
+                },
             }
-            cliente.join(data.chat_id);
-            chatJoin=data.chat_id;
-            cliente.emit("recive-chat-info",chat.messages);
-        }catch(err){
-            console.log(err);
-        }        
-    });
-    cliente.on("recive-solicitud",async (data)=>{// envia las solicitudes de amistad
+            let post_user = await ActualizarUsuario(usuario_update);
+            user[cliente.id] = post_user.update;
+            //----------------actualixcacion de token -------------------
+            cliente.emit("actualizacion-token",cliente.id);
+            //--------------------- notificaciones -----------------------
+            cliente.emit("notificaciones",user[cliente.id].notificaciones);
+
+            //--------------------- contactos---------------------------------
+            cliente.emit("contactos",user[cliente.id].contactos);
+            user[cliente.id].contactos.map(contacto =>{
+                cliente.join(contacto._id.toString());
+                cliente.to(contacto._id.toString()).emit("contacto-conexion",`${user[cliente.id].name} se ha conectado`);
+            })
+        }catch(err){console.log(err)}
+    })
+    //------------------------solicitud-------------------------
+    cliente.on("obtener-solicitud",async (datos)=>{
         try{
-            let a = await ObtenerUsuarios({
+            let req = {
                 body:{
                     search:{
-                        _id:usuario._id.toString()
+                        _id:user[cliente.id]._id
                     },
                     value:["solicitud"]
                 }
-            },null,true)
-            console.log(a);
-            if(a.solicitud.length >0){
-                cliente.emit("solicitudes",a.solicitud);
-            }
-        }catch(err){
-            console.log(err);
-        }
+            };
+            let res = await ObtenerUsuarios(req,null,true);
+            cliente.emit("solicitudes",res.solicitud);
+        }catch(err){console.log(err)}
     });
-    cliente.on("send-message",async (msj)=>{//enviar mensajes a los chats
-        console.log(chatJoin);
-        await AgregarMensaje(null,chatJoin,msj);
-        cliente.emit("recive-message",msj);
-        cliente.to(chatJoin).emit("recive-message",msj);
-    });
-    cliente.on("obtener-contactos",async(data)=>{
+
+    cliente.on("confirmar-solicitud",async (datos)=>{
         try{
-            console.log(await usuario);
-            let a = await ObtenerContacto({body:{_id:usuario._id}},null);
-            console.log(a.contactos);
-            if(a.contactos.length > 0 ){
-                cliente.emit("contacts-recive",a);
+            let pre_consulta ={
+                body:{
+                    value:{_id:datos.data._id},
+                    search:{_id:user[cliente.id]._id.toString()},
+                    option:datos.value
+                }
+            };
+            let res = await  opcionSolicitud(pre_consulta);
+            if(datos.value){
+                cliente.emit("solicitud-aceptada",true);
+                cliente.to(datos.data._id).emit("solicitud-aceptada",true);
             }
-        }catch(err){
-            console.log(err);
-        }
+        }catch(err){console.log(err);}
+    });
+
+    //------------------------Contactos-------------------------
+    cliente.on("contactos-refresh",async (datos)=>{
+        try{
+            let contactos = {
+                body:{
+                    search:{
+                        _id:user[cliente.id]
+                    }
+                },
+            };
+            let post_contactos = await ObtenerContacto(contactos,null);
+            cliente.emit("contactos",post_contactos.contactos);
+        }catch(err){console.log(err)}
     });
     cliente.on("add-contact",async (data)=>{//envia solicitudes de amistad
         try{
@@ -131,56 +128,49 @@ io.on('connection',async (cliente)=>{
                         name:data
                     },
                     value:{
-                        _id:usuario._id.toString(),
-                        name:usuario.name
+                        _id:user[cliente.id]._id.toString(),
+                        name:user[cliente.id].name
                     }
                 }
             }
             let soli = await enviarSolicitud(datos,null);
-            // let info = await ObtenerUsuarios (datos,null);
-            // if(soli.socket){
-                // console.log(info);
-                io.to(soli.socket).emit("recive-noti",soli.body);
-            // }
-        }catch(err){
-            console.log(err);
-        }
+            io.to(soli.socket).emit("notificaciones",soli.body);
+        }catch(err){console.log(err)}
     });
-    cliente.on("solicitud-option",async(data)=>{//confirmacion de las solicitudes
+    //--------------------------------CHAT-------------------------------------
+
+    cliente.on("send-chat",async (data)=>{// envia el identificador del chat en el que se encuentra
         try{
-            console.log(data);
-            let a = await opcionSolicitud({
-                body:{
-                    value:{_id:data.data._id},
-                    search:{_id:usuario._id.toString()},
-                    option:data.value
-                }
-            },null);
-            if(data.value){
-                console.log(a);
-                cliente.emit("change-contacts",true);
-                cliente.to(data.data._id.toString()).emit("change-contacts",true);
+            let chat = await ObtenerChat(null,data.chat_id);
+            if(user[cliente.id].chatJoin){
+                cliente.leave(user[cliente.id].chatJoin);
             }
+            cliente.join(data.chat_id);
+            user[cliente.id].chatJoin=data.chat_id;
+            cliente.emit("recive-chat-info",chat.messages);
         }catch(err){
             console.log(err);
-        }
+        }        
     });
-    cliente.on("test-btn",data=>{
+    cliente.on("send-message",async (msj)=>{//enviar mensajes a los chats
+        await AgregarMensaje(null,user[cliente.id].chatJoin,msj);
+        cliente.emit("recive-message",msj);
+        cliente.to(user[cliente.id].chatJoin).emit("recive-message",msj);
+    });
+
+
+    cliente.on("disconnect",async(datos)=>{
         try{
-            console.log("a");
-            testBtn.push({chat_id:2,name:"lol"});
-            cliente.emit("test-contactos",{contactos:testBtn});
-        }catch(err){
-            console.log(err);
-        }
+            let usuario_update ={ // estructura necesaria para buscar y actualizar datos
+                body:{
+                    search:user[cliente.id]._id,
+                    update:{conexion:false}
+                },
+            }
+            await ActualizarUsuario(usuario_update);
+            delete user[cliente.id];
+        }catch(err){console.log(err)}
     })
-    cliente.on("disconnect",async(data)=>{
-        console.log("usuario desconectado");
-        // if(usuario){
-        //     await ActualizarUsuario({body:{search:{_id:await usuario._id},update:{conexion:false}}})
-        // }
-        delete usuario;
-    });
 })
 
 

@@ -88,7 +88,7 @@ const ObtenerUsuarios = async (req,res,search=false)=>{
         let respuesta = await User.findOne(search ? datos.search : {}).select(datos_value);
         if(datos.session){
             if(!respuesta){
-                console.log("no se habre session");
+                console.log("no se abre session");
             }else{
                 var newId = idGenerator();
                 await User.findOneAndUpdate(datos.search,{session:newId,conexion:true},{new:true}); // se crea el id y luego se almacena
@@ -145,10 +145,10 @@ const ActualizarUsuario = async (req,res=null)=>{// funcion que permite actualiz
         let datos = req.body;
         let datos_search=datos.search;
         let datos_update=datos.update;
-        if(!await User.findByIdAndUpdate(datos_search,datos_update,{new:true}))return res ? res.json({message:"error al actualizar"}) : "error al actualizar";
-        if(res){
-            res.json({message:"registro actualizado"});
-        }
+        let update_user = await User.findByIdAndUpdate(datos_search,datos_update,{new:true});
+        if(!update_user)return res ? res.json({message:"error al actualizar"}) : "error al actualizar";
+        if(!res) return {message:"datos almacenados",update:update_user};
+        res.json({message:"registro actualizado"});
     }catch(err){
         console.log(err);
     }
@@ -186,7 +186,6 @@ const enviarSolicitud =async (req,res=null)=>{
 
 const opcionSolicitud =async (req,res=null)=>{
     try{
-        console.log(req.body);
         const {search,value,option} = req.body;
         let usuario = await User.findOne(search);
         if(!usuario) return res.json({message:"usuario no encontrado"});
@@ -237,7 +236,6 @@ const ObtenerContacto = async (req,res)=>{
     try{
         let datos= req.body;
         let datos_search= datos.search;
-        let datos_value= datos.value;
         let resultado=await User.findOne(datos_search,`contactos`);
         console.log(req.body);
         if(res)return res.json(resultado);
