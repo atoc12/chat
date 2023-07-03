@@ -4,6 +4,13 @@
     box-sizing: border-box;
     font-family: 'Roboto', sans-serif;
 }
+*::-webkit-scrollbar-thumb{
+    background-color: var(--scroll-color);
+    border-radius: 10px;
+}
+*::-webkit-scrollbar{
+    width: 5px;
+}
 :root{
     --thme-background1:#303030;
 }

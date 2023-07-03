@@ -249,7 +249,7 @@ const BorrarNotificacion = async(req,res=null)=>{
         if(!usuario) return ;
         if(value){
             let noti =usuario.notificaciones.findIndex((notificaciones)=> notificaciones._id.toString() === value._id.toString());
-            if(noti === -1) return res.json({message:"contacto no existente"});
+            if(noti === -1) return {message:"contacto no existente"};
             usuario.notificaciones.splice(noti,1);
         }else{
             usuario.notificaciones = [];

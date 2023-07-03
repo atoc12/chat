@@ -5,6 +5,8 @@
     ;
     /* ------------------------------- Colors hover backgrounds-------- */
     --background-hover-primary:rgb(47, 149, 149);
+    /* ---------------------------scroll-color-------------------------- */
+    --scroll-color:rgb(66, 66, 66);
     /* -----------------------------Font-color-------------------------- */
     --font-color-primary:black;
     --font-color-secondary:cyan;
@@ -12,5 +14,5 @@
     /*--------------------------------borders-------------------------- */
     --border-primary:2px solid black;
     /*--------------------------------Box-shadow-----------------------  */
-    --box-shadow-primary:0px 0px 10px -5px rgb(21, 19, 19);
+    --box-shadow-primary:0px 0px 10px -5px rgba(21, 19, 19, 0.437);
 }

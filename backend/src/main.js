@@ -198,6 +198,7 @@ io.on('connection',async (cliente)=>{
         }        
     });
     cliente.on("send-message",async (msj)=>{//enviar mensajes a los chats
+        console.log(msj);
         await AgregarMensaje(null,user[cliente.id].chatJoin,msj);
         cliente.emit("recive-message",msj);
         cliente.to(user[cliente.id].chatJoin).emit("recive-message",msj);

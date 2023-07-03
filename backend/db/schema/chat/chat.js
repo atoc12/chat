@@ -16,8 +16,8 @@ const chatSchema =new Schema({
             type:String
         },
         timestamp: {
-            type: Date,
-            default: Date.now
+            type: String,
+            default: Date
         }
     }]
 })
@@ -60,8 +60,8 @@ const AgregarMensaje = async (res,id,datos)=>{
                     sender:datos.sender,
                     name:datos.name
                 });
-            await chat.save();
-            console.log(men);
+            let resultado = await chat.save();
+            console.log(resultado[resultado.length]);
         }
         if(res){
             res.json({message:"mensaje almacenado"});
